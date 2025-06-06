@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { Recipe } from "./types";
@@ -17,36 +18,37 @@ export function slugify(text: string): string {
 }
 
 
-// Mock function to generate recipe details
+// Mock function to generate recipe details - SIMPLIFIED LANGUAGE
 export function getMockRecipeDetails(name: string, sourceImage?: string): Recipe {
   const slug = slugify(name);
-  const commonHints = ["delicious food", "home cooking", "fresh ingredients", "tasty meal"];
-  const randomHint = commonHints[Math.floor(Math.random() * commonHints.length)];
   return {
     id: slug,
     name: name,
-    description: `A delicious and easy-to-make ${name.toLowerCase()} featuring fresh ingredients. Perfect for any occasion.`,
-    imageUrl: `https://placehold.co/800x600.png?text=${encodeURIComponent(name)}`,
-    sourceImage: sourceImage,
+    description: `This is a simple and yummy ${name.toLowerCase()}. Easy to make at home.`,
+    imageUrl: `https://placehold.co/800x600.png`, // Generic placeholder, text removed
+    sourceImage: sourceImage, // This is the user-uploaded ingredients image
     ingredients: [
-      { name: 'Main Ingredient (e.g., Chicken Breast)', quantity: '2', unit: 'pieces' },
-      { name: 'Vegetable (e.g., Bell Pepper)', quantity: '1', unit: 'medium' },
-      { name: 'Aromatic (e.g., Garlic)', quantity: '2', unit: 'cloves' },
-      { name: 'Herb (e.g., Parsley)', quantity: '1/4', unit: 'cup, chopped' },
-      { name: 'Spice (e.g., Paprika)', quantity: '1', unit: 'tsp' },
-      { name: 'Olive Oil', quantity: '2', unit: 'tbsp' },
-      { name: 'Salt', quantity: 'to', unit: 'taste' },
-      { name: 'Pepper', quantity: 'to', unit: 'taste' },
+      { name: 'Main food (like Chicken or Potato)', quantity: '2', unit: 'pieces (medium size)' },
+      { name: 'Vegetable (like Onion or Tomato)', quantity: '1', unit: 'medium size' },
+      { name: 'Garlic', quantity: '2', unit: 'small pieces (cloves)' },
+      { name: 'Green leaf (like Coriander or Parsley)', quantity: 'A little bit', unit: 'chopped' },
+      { name: 'Powder masala (like Turmeric or Chilli powder)', quantity: '1', unit: 'small spoon (teaspoon)' },
+      { name: 'Oil (like Sunflower or Groundnut oil)', quantity: '2', unit: 'big spoons (tablespoons)' },
+      { name: 'Salt', quantity: 'A little bit', unit: 'for taste' },
+      { name: 'Black Pepper powder', quantity: 'A little bit', unit: 'for taste (optional)' },
     ],
     instructions: [
-      `Prepare all ingredients for ${name.toLowerCase()}. Chop vegetables and measure spices.`,
-      'Heat olive oil in a pan over medium heat. Add aromatics and cook until fragrant.',
-      `Add the main ingredient and cook until browned on all sides. For ${name.toLowerCase()}, ensure it's cooked through.`,
-      'Stir in vegetables and spices. Cook until vegetables are tender-crisp.',
-      `Garnish with fresh herbs. Serve your ${name.toLowerCase()} hot and enjoy!`,
+      `Get all your food items ready for making ${name.toLowerCase()}. Cut the vegetables into small pieces.`,
+      'Put a cooking pan on the stove. Turn the stove to medium heat.',
+      'Add the oil to the pan. Wait for 1 minute for the oil to get warm.',
+      'Put the garlic in the pan. Cook for 1 minute until it smells good.',
+      `Add the main food (like chicken or potato). Cook for 5-7 minutes. If it's chicken, cook until it turns white. Stir it sometimes.`,
+      'Now, add the vegetables and powder masala. Mix everything well. Cook for 3-4 minutes until vegetables are a little soft.',
+      `Add salt and pepper if you like. Mix well.`,
+      `Put the green leaves on top. Your ${name.toLowerCase()} is ready! Eat it while it's hot.`,
     ],
-    prepTime: '15 min',
-    cookTime: '25 min',
-    servings: '2-4 servings',
+    prepTime: 'About 15 minutes',
+    cookTime: 'About 25 minutes',
+    servings: 'For 2-3 people',
   };
 }

@@ -24,7 +24,7 @@ export type AnalyzeIngredientsInput = z.infer<typeof AnalyzeIngredientsInputSche
 const AnalyzeIngredientsOutputSchema = z.object({
   ingredients: z
     .array(z.string())
-    .describe('An array of identified ingredient names from the photo.'),
+    .describe('An array of identified ingredient names from the photo, using very common and basic English terms.'),
 });
 export type AnalyzeIngredientsOutput = z.infer<typeof AnalyzeIngredientsOutputSchema>;
 
@@ -36,9 +36,11 @@ const prompt = ai.definePrompt({
   name: 'analyzeIngredientsPrompt',
   input: {schema: AnalyzeIngredientsInputSchema},
   output: {schema: AnalyzeIngredientsOutputSchema},
-  prompt: `You are an ingredient recognition AI. Given a photo of ingredients, identify all visible food ingredients.
-  Focus on common names for ingredients. For example, if you see a 'Granny Smith apple', just return 'apple'.
+  prompt: `You are an ingredient recognition AI. Your user understands basic English.
+  Given a photo of ingredients, identify all visible food ingredients.
+  Use only very common, simple English names for ingredients. For example, if you see a 'Granny Smith apple', return 'apple'.
   If you see 'boneless, skinless chicken thighs', return 'chicken'.
+  If you see 'capsicum', return 'bell pepper' or 'pepper'.
   Return a list of unique ingredient names.
 
   Ingredients Photo: {{media url=photoDataUri}}`,

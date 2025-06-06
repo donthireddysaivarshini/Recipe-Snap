@@ -15,14 +15,14 @@ const GenerateRecipesFromIngredientsInputSchema = z.object({
   ingredients: z
     .array(z.string())
     .min(1, "At least one ingredient is required.")
-    .describe('An array of ingredient names.'),
+    .describe('An array of ingredient names in basic English.'),
 });
 export type GenerateRecipesFromIngredientsInput = z.infer<typeof GenerateRecipesFromIngredientsInputSchema>;
 
 const GenerateRecipesFromIngredientsOutputSchema = z.object({
   recipes: z
     .array(z.string())
-    .describe('An array of recipe suggestions based on the provided ingredients.'),
+    .describe('An array of recipe name suggestions in simple, easy-to-understand English, based on the provided ingredients.'),
 });
 export type GenerateRecipesFromIngredientsOutput = z.infer<typeof GenerateRecipesFromIngredientsOutputSchema>;
 
@@ -34,7 +34,9 @@ const prompt = ai.definePrompt({
   name: 'generateRecipesFromIngredientsPrompt',
   input: {schema: GenerateRecipesFromIngredientsInputSchema},
   output: {schema: GenerateRecipesFromIngredientsOutputSchema},
-  prompt: `You are a recipe suggestion AI. Given a list of ingredients, suggest 3-5 recipes that can be made primarily using these ingredients.
+  prompt: `You are a recipe suggestion AI. Your user understands basic English and is new to cooking.
+  Given a list of ingredients, suggest 3-5 recipe names.
+  Recipe names should be very simple, descriptive, and easy for a beginner to understand (e.g., "Easy Chicken Stir-fry", "Simple Tomato Soup", "Basic Potato Curry").
   Prioritize recipes that make good use of the provided ingredients.
 
   Ingredients available:
@@ -42,7 +44,7 @@ const prompt = ai.definePrompt({
   - {{{this}}}
   {{/each}}
 
-  Respond with an array of recipe name suggestions.`,
+  Respond with an array of simple recipe name suggestions.`,
 });
 
 const generateRecipesFromIngredientsFlow = ai.defineFlow(
