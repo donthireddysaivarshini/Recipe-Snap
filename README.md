@@ -20,6 +20,9 @@ An intelligent web app that:
 - **Database**: MongoDB
 - **AI**: OpenAI Vision & GPT-4 APIs
 
+## Demo
+![Demo Video](demo.mp4)
+
 ## Quick Start
 1. Clone repo
 2. Set up `.env` with:
