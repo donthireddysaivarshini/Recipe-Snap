@@ -10,9 +10,10 @@ import { slugify } from '@/lib/utils'; // Import slugify
 interface RecipeCardProps {
   recipe: LocalSavedRecipe;
   isLink?: boolean;
+  hideImage?: boolean; // New prop
 }
 
-export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
+export default function RecipeCard({ recipe, isLink = true, hideImage = false }: RecipeCardProps) {
   const slug = slugify(recipe.name);
   // recipe.sourceImage on LocalSavedRecipe can be a data URI or a regular URL
   const isDataUri = recipe.sourceImage && recipe.sourceImage.startsWith('data:image/');
@@ -37,27 +38,27 @@ export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
 
   const cardContent = (
     <Card className="h-full flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-      <CardHeader className="p-0">
-        <div className="aspect-[4/3] relative w-full overflow-hidden">
-          {recipe.sourceImage ? (
-            <Image
-              src={recipe.sourceImage} // This will now always be a string due to fallback in saved-recipes/page.tsx
-              alt={`Image for ${recipe.name}`}
-              layout="fill"
-              objectFit="cover"
-              className="transition-transform duration-300 group-hover:scale-105"
-              data-ai-hint={imageHint}
-            />
-          ) : (
-            // This else block should ideally not be reached if the fallback logic in saved-recipes page works.
-            // Kept for extreme robustness or if RecipeCard is used elsewhere without guaranteed sourceImage.
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <ImageIcon size={48} className="text-muted-foreground" />
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 flex-grow">
+      {!hideImage && (
+        <CardHeader className="p-0">
+          <div className="aspect-[4/3] relative w-full overflow-hidden">
+            {recipe.sourceImage ? (
+              <Image
+                src={recipe.sourceImage}
+                alt={`Image for ${recipe.name}`}
+                layout="fill"
+                objectFit="cover"
+                className="transition-transform duration-300 group-hover:scale-105"
+                data-ai-hint={imageHint}
+              />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <ImageIcon size={48} className="text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        </CardHeader>
+      )}
+      <CardContent className={`p-4 flex-grow ${hideImage ? 'pt-6' : ''}`}>
         <CardTitle className="font-headline text-xl mb-2 line-clamp-2">{recipe.name}</CardTitle>
         <CardDescription className="text-sm line-clamp-3">
           A delightful dish made from the provided ingredients. Perfect for a quick meal.

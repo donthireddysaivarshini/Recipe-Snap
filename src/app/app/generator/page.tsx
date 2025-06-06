@@ -291,7 +291,7 @@ export default function RecipeGeneratorPage() {
 
       {currentStep === 'showingRecipes' && recipesToDisplay.length > 0 && (
         <section>
-          <RecipeList recipes={recipesToDisplay} title="Here's what we cooked up for you!" />
+          <RecipeList recipes={recipesToDisplay} title="Here's what we cooked up for you!" hideCardImage={false} />
            <div className="text-center mt-8 space-x-4">
              <Button variant="outline" onClick={() => setCurrentStep('editingIngredients')}>
                 <Pencil className="mr-2 h-4 w-4"/> Refine Ingredients

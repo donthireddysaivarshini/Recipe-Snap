@@ -13,7 +13,6 @@ export default function SavedRecipesPage() {
 
   const recipesToDisplay: LocalSavedRecipe[] = savedRecipes.map(r => {
     // Directly use the sourceImage from the saved Recipe object.
-    // If r.sourceImage is undefined or null, RecipeCard will handle the fallback (e.g., show ImageIcon).
     return {
       name: r.name,
       sourceImage: r.sourceImage // Pass r.sourceImage (user-uploaded image) directly
@@ -37,7 +36,7 @@ export default function SavedRecipesPage() {
       </section>
       
       {savedRecipes.length > 0 ? (
-        <RecipeList recipes={recipesToDisplay} title="" />
+        <RecipeList recipes={recipesToDisplay} title="" hideCardImage={true} />
       ) : (
         <div className="text-center py-16 bg-card rounded-lg shadow-sm">
           <BookHeart size={64} className="mx-auto mb-6 text-muted-foreground/50" />
