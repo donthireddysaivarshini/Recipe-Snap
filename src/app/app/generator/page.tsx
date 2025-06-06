@@ -24,7 +24,7 @@ const initialAnalyzeState: AnalyzeIngredientsState = {
 
 const initialGenerateState: GenerateRecipesState = {
   message: null,
-  recipes: null, // This will now be a list of recipe names (strings)
+  recipes: null,
   errors: null,
 };
 
@@ -78,20 +78,20 @@ export default function RecipeGeneratorPage() {
     setPhotoDataUri(dataUri);
     setCurrentStep('initial'); 
     setEditableIngredients([]); 
-    // Reset generateState as well if a new image is uploaded
-    // This can be done by calling its reset function if available, or re-initializing its data
-    // For useActionState, the next action will naturally get a fresh 'prevState' if the key/form changes,
-    // or one might manually reset related UI state.
+    // Resetting generateState if a new image is uploaded is implicitly handled
+    // because new ingredients will lead to a new generateAction call.
   };
 
+  // Effect to handle state changes from ingredient analysis
   useEffect(() => {
-    if (analyzeState?.timestamp) { // Use timestamp to detect new state
+    if (analyzeState?.timestamp) { // A new analysis action has completed
       if (analyzeState.errors) {
         const errorMsg = analyzeState.errors.general?.join(', ') || analyzeState.errors.photoDataUri?.join(', ') || 'Error analyzing image.';
         toast({ variant: "destructive", title: "Analysis Error", description: errorMsg });
       } else if (analyzeState.ingredients) {
+        // Sync editableIngredients with fresh AI results from a new analysis
         setEditableIngredients(analyzeState.ingredients);
-        setCurrentStep('editingIngredients');
+        // Toast for completion
         if (analyzeState.message && analyzeState.ingredients.length > 0) {
            toast({ title: "Analysis Complete", description: analyzeState.message });
         } else if (analyzeState.message) { // e.g. no ingredients found
@@ -99,25 +99,52 @@ export default function RecipeGeneratorPage() {
         }
       }
     }
-  }, [analyzeState, toast]);
 
+    // Determine current UI step based on overall state (handles back navigation)
+    // If ingredients are analyzed, photo context exists, and recipes are not yet shown
+    if (photoDataUri && analyzeState?.ingredients && (!generateState?.recipes || generateState.recipes.length === 0)) {
+      setCurrentStep('editingIngredients');
+       // Ensure editableIngredients is synced if analyzeState has data but local state is empty (e.g., on back nav)
+       if (editableIngredients.length === 0 && analyzeState.ingredients.length > 0) {
+        setEditableIngredients(analyzeState.ingredients);
+      }
+    }
+  }, [analyzeState, photoDataUri, generateState?.recipes, toast, editableIngredients]); // Added editableIngredients to ensure it's up-to-date for comparison
+
+  // Effect to handle state changes from recipe generation
   useEffect(() => {
-    if (generateState?.timestamp) { // Use timestamp to detect new state
+    if (generateState?.timestamp) { // A new recipe generation action has completed
       if (generateState.errors) {
         const errorMsg = generateState.errors.general?.join(', ') || generateState.errors.ingredients?.join(', ') || 'Error generating recipe ideas.';
         toast({ variant: "destructive", title: "Recipe Idea Error", description: errorMsg });
       } else if (generateState.recipes) {
-        setCurrentStep('showingRecipes');
+        // Toast for completion
         if (generateState.message) {
           toast({ title: "Recipe Ideas Ready!", description: generateState.message });
         }
       }
     }
-  }, [generateState, toast]);
+    
+    // Determine current UI step based on overall state (handles back navigation)
+    // If recipes are generated and photo context exists
+    if (generateState?.recipes && photoDataUri) {
+      setCurrentStep('showingRecipes');
+    }
+  }, [generateState, photoDataUri, toast]);
+
+  // Effect to handle returning to initial state if photo is cleared
+  useEffect(() => {
+    if (!photoDataUri) {
+      setCurrentStep('initial');
+      setEditableIngredients([]); // Clear ingredients if going back to the very start
+      // Note: generateState is not explicitly reset here; new ingredient analysis will lead to new recipes.
+    }
+  }, [photoDataUri]);
+
 
   const handleAddIngredient = () => {
     if (newIngredient.trim() && !editableIngredients.map(ing => ing.toLowerCase()).includes(newIngredient.trim().toLowerCase())) {
-      setEditableIngredients([...editableIngredients, newIngredient.trim()]); // Keep original casing for display, comparison is case-insensitive
+      setEditableIngredients([...editableIngredients, newIngredient.trim()]);
       setNewIngredient("");
     } else if (newIngredient.trim()) {
         toast({variant: "default", title: "Duplicate Ingredient", description: `${newIngredient.trim()} is already in the list.`});
@@ -128,13 +155,11 @@ export default function RecipeGeneratorPage() {
     setEditableIngredients(editableIngredients.filter(ing => ing.toLowerCase() !== ingredientToRemove.toLowerCase()));
   };
 
-  // recipesToDisplay now maps recipe names to LocalSavedRecipe objects for the RecipeList
   const recipesToDisplay: LocalSavedRecipe[] = useMemo(() => {
     if (currentStep === 'showingRecipes' && generateState?.recipes && photoDataUri) {
-      // generateState.recipes is an array of recipe name strings
       return generateState.recipes.map(name => ({ 
         name, 
-        sourceImage: photoDataUri // The user-uploaded image of ingredients
+        sourceImage: photoDataUri
       }));
     }
     return [];
@@ -220,7 +245,7 @@ export default function RecipeGeneratorPage() {
             
             {editableIngredients.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-lg font-medium text-foreground">Ingredients Found:</h3>
+                <h3 className="text-lg font-medium text-foreground">Ingredients Found/Edited:</h3>
                 <div className="flex flex-wrap gap-2">
                   {editableIngredients.map((ingredient, index) => (
                     <Badge key={index} variant="secondary" className="py-1 px-3 text-sm flex items-center gap-2">
@@ -233,10 +258,10 @@ export default function RecipeGeneratorPage() {
                 </div>
               </div>
             )}
-             {editableIngredients.length === 0 && !isAnalyzePending && ( // Show if analysis is done and list is empty
+             {editableIngredients.length === 0 && photoDataUri && !isAnalyzePending && ( 
                  <Alert variant="default">
                     <Lightbulb className="h-4 w-4" />
-                    <AlertTitle>No Ingredients Found</AlertTitle>
+                    <AlertTitle>No Ingredients Listed</AlertTitle>
                     <AlertDescription>
                     The AI didn&apos;t find any ingredients, or you removed them. Add some yourself to get recipe ideas.
                     </AlertDescription>
@@ -245,7 +270,7 @@ export default function RecipeGeneratorPage() {
 
             <div className="flex gap-2 items-end">
               <div className="flex-grow space-y-1">
-                <label htmlFor="new-ingredient-input" className="text-sm font-medium text-muted-foreground">Add Ingredient (e.g., tomato, chicken)</label>
+                <Label htmlFor="new-ingredient-input" className="text-sm font-medium text-muted-foreground">Add Ingredient (e.g., tomato, chicken)</Label>
                 <Input 
                   id="new-ingredient-input"
                   type="text" 
@@ -262,7 +287,6 @@ export default function RecipeGeneratorPage() {
               </Button>
             </div>
             <form action={generateAction} className="space-y-4 pt-4 border-t">
-              {/* Pass ingredients as a comma-separated string for the server action */}
               <input type="hidden" name="ingredients" value={editableIngredients.join(',')} />
                {generateState?.errors?.ingredients && (
                 <Alert variant="destructive">
@@ -279,7 +303,7 @@ export default function RecipeGeneratorPage() {
                 </Alert>
               )}
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <Button variant="outline" onClick={() => { setCurrentStep('initial'); setPhotoDataUri(null); setEditableIngredients([]); }} disabled={isGeneratePending}>
+                <Button variant="outline" onClick={() => { setPhotoDataUri(null); /* useEffect will handle currentStep and editableIngredients */ }} disabled={isGeneratePending}>
                   Start Over with New Image
                 </Button>
                 <GenerateRecipesSubmitButton />
@@ -298,7 +322,6 @@ export default function RecipeGeneratorPage() {
 
       {currentStep === 'showingRecipes' && recipesToDisplay.length > 0 && (
         <section>
-          {/* Pass editableIngredients to RecipeList for use in RecipeCard links */}
           <RecipeList 
             recipes={recipesToDisplay} 
             title="Here are some recipe ideas!" 
@@ -309,7 +332,7 @@ export default function RecipeGeneratorPage() {
              <Button variant="outline" onClick={() => setCurrentStep('editingIngredients')}>
                 <Pencil className="mr-2 h-4 w-4"/> Change Ingredients
             </Button>
-            <Button variant="default" onClick={() => { setCurrentStep('initial'); setPhotoDataUri(null); setEditableIngredients([]); }}>
+            <Button variant="default" onClick={() => { setPhotoDataUri(null); /* useEffect will handle currentStep and editableIngredients */ }}>
               Start New Search (New Image)
             </Button>
           </div>
@@ -327,7 +350,7 @@ export default function RecipeGeneratorPage() {
              <Button variant="default" onClick={() => setCurrentStep('editingIngredients')}>
                 <Pencil className="mr-2 h-4 w-4"/> Change Ingredient List
             </Button>
-            <Button variant="outline" onClick={() => { setCurrentStep('initial'); setPhotoDataUri(null); setEditableIngredients([]); }}>
+            <Button variant="outline" onClick={() => { setPhotoDataUri(null); /* useEffect will handle currentStep and editableIngredients */ }}>
               Try New Image
             </Button>
           </div>
