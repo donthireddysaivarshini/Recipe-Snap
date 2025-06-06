@@ -6,22 +6,25 @@ import RecipeDetailView from '@/components/recipe/RecipeDetailView';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { Recipe } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react'; // Added 'use'
 import { generateSimpleRecipeDetailsAction, type GenerateSimpleRecipeDetailsState } from '@/lib/actions';
-import { getMockRecipeDetails } from '@/lib/utils'; // Keep for fallback/initial state
+import { getMockRecipeDetails } from '@/lib/utils'; 
 
-export default function RecipeDetailPage({ params }: { params: { id: string } }) {
+export default function RecipeDetailPage({ params }: { params: Promise<{ id: string }> }) { // params is a Promise
+  const resolvedParams = use(params); // Resolve the promise here
+  const id = resolvedParams.id; // Get the id
+
   const searchParams = useSearchParams();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [userUploadedImage, setUserUploadedImage] = useState<string | undefined>(undefined);
+  // No longer need userUploadedImage state here as sourceImage is part of the Recipe object now
 
   useEffect(() => {
     const recipeNameParam = searchParams.get('name');
-    const directImageParam = searchParams.get('image');
-    const tempImageKeyParam = searchParams.get('tempImageKey');
-    const ingredientsParam = searchParams.get('ingredients'); // Get ingredients if passed
+    const directImageParam = searchParams.get('image'); // For direct image URL (less common now)
+    const tempImageKeyParam = searchParams.get('tempImageKey'); // For data URI from session storage
+    const ingredientsParam = searchParams.get('ingredients'); 
 
     if (!recipeNameParam) {
       setError("Recipe name not found. Please go back and select a recipe.");
@@ -35,48 +38,43 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
         const storedImage = sessionStorage.getItem(`tempImage_${tempImageKeyParam}`);
         if (storedImage) {
           sourceImg = storedImage;
-          // Clean up immediately
-          // sessionStorage.removeItem(`tempImage_${tempImageKeyParam}`); // Let's not remove, user might refresh
+          // sessionStorage.removeItem(`tempImage_${tempImageKeyParam}`); // Removed for now to allow refresh
         }
       } catch (e) {
         console.warn("Failed to access session storage for temp image.", e);
       }
     }
-    setUserUploadedImage(sourceImg); // Store user-uploaded image separately
 
     const fetchRecipeDetails = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Call the new server action to get AI-generated recipe details
         const result: GenerateSimpleRecipeDetailsState = await generateSimpleRecipeDetailsAction(recipeNameParam, ingredientsParam || undefined);
 
         if (result.recipe) {
-          // Combine AI recipe with user-uploaded image
           const finalRecipe: Recipe = {
             ...result.recipe,
-            id: params.id || result.recipe.id, // Ensure router slug is used for ID
-            sourceImage: sourceImg, // Add the user-uploaded image here
+            id: id || result.recipe.id, // Use resolved id from route
+            sourceImage: sourceImg, // Add the user-uploaded image (or other source) here
           };
           setRecipe(finalRecipe);
         } else if (result.errors) {
           const errorMsg = result.errors.general?.join(', ') || result.errors.recipeName?.join(', ') || 'Error generating recipe details.';
           setError(`AI Error: ${errorMsg}. Displaying basic info.`);
-          // Fallback to simplified mock details if AI fails
           const mockRecipe = getMockRecipeDetails(recipeNameParam, sourceImg);
-          mockRecipe.id = params.id || mockRecipe.id;
+          mockRecipe.id = id || mockRecipe.id; // Use resolved id
           setRecipe(mockRecipe);
         } else {
           setError("Failed to generate recipe details from AI. Displaying basic info.");
           const mockRecipe = getMockRecipeDetails(recipeNameParam, sourceImg);
-          mockRecipe.id = params.id || mockRecipe.id;
+          mockRecipe.id = id || mockRecipe.id; // Use resolved id
           setRecipe(mockRecipe);
         }
       } catch (e) {
         console.error("Error fetching AI recipe details:", e);
         setError(`Fetch Error: ${e instanceof Error ? e.message : String(e)}. Displaying basic info.`);
         const mockRecipe = getMockRecipeDetails(recipeNameParam, sourceImg);
-        mockRecipe.id = params.id || mockRecipe.id;
+        mockRecipe.id = id || mockRecipe.id; // Use resolved id
         setRecipe(mockRecipe);
       } finally {
         setIsLoading(false);
@@ -85,7 +83,7 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
 
     fetchRecipeDetails();
 
-  }, [searchParams, params.id]);
+  }, [searchParams, id]); // Use resolved id in dependency array
 
 
   if (isLoading) {
@@ -98,7 +96,7 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
     );
   }
 
-  if (error && !recipe) { // Show error only if no recipe could be loaded (even fallback)
+  if (error && !recipe) { 
     return (
       <div className="container mx-auto px-4 py-8">
         <Alert variant="destructive">
@@ -110,10 +108,9 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
     );
   }
   
-  // If there was an AI error but we have a fallback recipe, show the error above the recipe
   return (
     <div>
-      {error && recipe && ( // Show non-critical error above recipe
+      {error && recipe && ( 
          <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Notice</AlertTitle>
