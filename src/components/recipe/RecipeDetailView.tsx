@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -12,17 +13,20 @@ interface RecipeDetailViewProps {
 }
 
 export default function RecipeDetailView({ recipe }: RecipeDetailViewProps) {
+  const displayImage = recipe.sourceImage || recipe.imageUrl;
+  const imageHint = recipe.sourceImage ? "food ingredients" : "cooked dish";
+
   return (
     <Card className="overflow-hidden shadow-xl">
       <CardHeader className="p-0 relative">
         <div className="aspect-video w-full relative">
-          {recipe.imageUrl || recipe.sourceImage ? (
+          {displayImage ? (
             <Image
-              src={recipe.imageUrl || recipe.sourceImage!}
+              src={displayImage}
               alt={`Image of ${recipe.name}`}
               layout="fill"
               objectFit="cover"
-              data-ai-hint="cooked dish"
+              data-ai-hint={imageHint}
             />
           ) : (
              <div className="w-full h-full bg-muted flex items-center justify-center">
