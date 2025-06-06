@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useState, useEffect, useMemo, useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { generateRecipesAction, type GenerateRecipesState } from '@/lib/actions';
 import ImageUpload from '@/components/recipe/ImageUpload';
@@ -36,7 +36,7 @@ function SubmitButton() {
 }
 
 export default function RecipeGeneratorPage() {
-  const [formState, formAction] = useFormState(generateRecipesAction, initialState);
+  const [formState, formAction] = useActionState(generateRecipesAction, initialState);
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const { toast } = useToast();
