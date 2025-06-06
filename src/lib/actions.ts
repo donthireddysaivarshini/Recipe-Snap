@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 const AnalyzeIngredientsSchema = z.object({
   photoDataUri: z.string().min(1, "Photo data URI is required."),
+  // photoDataUriUsedInAnalysis: z.string().optional(), // Internal use, not from form
 });
 
 export type AnalyzeIngredientsState = {
@@ -19,6 +20,7 @@ export type AnalyzeIngredientsState = {
     general?: string[];
   } | null;
   timestamp?: number;
+  photoDataUriUsedInAnalysis?: string | null; // Store the URI used for this state
 };
 
 export async function analyzeIngredientsAction(
@@ -34,6 +36,7 @@ export async function analyzeIngredientsAction(
       errors: validatedFields.error.flatten().fieldErrors,
       message: 'Validation failed. Please provide a valid image.',
       timestamp: Date.now(),
+      photoDataUriUsedInAnalysis: null, // Explicitly null on validation failure
     };
   }
 
@@ -49,6 +52,7 @@ export async function analyzeIngredientsAction(
         ingredients: result.ingredients,
         errors: null,
         timestamp: Date.now(),
+        photoDataUriUsedInAnalysis: photoDataUri,
       };
     } else {
       return {
@@ -56,9 +60,11 @@ export async function analyzeIngredientsAction(
         ingredients: [],
         errors: null,
         timestamp: Date.now(),
+        photoDataUriUsedInAnalysis: photoDataUri,
       };
     }
-  } catch (error) {
+  } catch (error)
+ {
     console.error('Error analyzing ingredients:', error);
     let errorMessage = 'An unexpected error occurred while analyzing ingredients.';
     if (error instanceof Error) {
@@ -69,6 +75,7 @@ export async function analyzeIngredientsAction(
       errors: { general: [errorMessage] },
       ingredients: null,
       timestamp: Date.now(),
+      photoDataUriUsedInAnalysis: photoDataUri, // Still note which photo caused error
     };
   }
 }
@@ -77,17 +84,19 @@ const GenerateRecipesFromListSchema = z.object({
   ingredients: z.preprocess(
     (val) => (typeof val === 'string' ? val.split(',').map(s => s.trim()).filter(s => s) : []),
     z.array(z.string().min(1, "Ingredient name cannot be empty.")).min(1, "At least one ingredient is required.")
-  )
+  ),
+  photoDataUriForRecipeSource: z.string().optional(), // To carry over the source image for the recipes
 });
 
 export type GenerateRecipesState = {
   message?: string | null;
-  recipes?: string[] | null; // List of recipe names
+  recipes?: Array<{ name: string; description: string; }> | null; // Array of recipe ideas with names & descriptions
   errors?: {
     ingredients?: string[];
     general?: string[];
   } | null;
   timestamp?: number;
+  photoDataUriUsedForIdeas?: string | null; // Store the URI used for generating these ideas
 };
 
 export async function generateRecipesFromIngredientsListAction(
@@ -96,6 +105,7 @@ export async function generateRecipesFromIngredientsListAction(
 ): Promise<GenerateRecipesState> {
   const validatedFields = GenerateRecipesFromListSchema.safeParse({
     ingredients: formData.get('ingredients'), 
+    photoDataUriForRecipeSource: formData.get('photoDataUriForRecipeSource'),
   });
 
   if (!validatedFields.success) {
@@ -103,21 +113,24 @@ export async function generateRecipesFromIngredientsListAction(
       errors: validatedFields.error.flatten().fieldErrors,
       message: 'Validation failed. Please provide a valid list of ingredients.',
       timestamp: Date.now(),
+      photoDataUriUsedForIdeas: String(formData.get('photoDataUriForRecipeSource') || null),
     };
   }
 
-  const { ingredients } = validatedFields.data;
+  const { ingredients, photoDataUriForRecipeSource } = validatedFields.data;
 
   try {
     const aiInput: GenerateRecipesFromIngredientsInput = { ingredients };
-    const result: GenerateRecipesFromIngredientsOutput = await generateRecipesFromIngredientsFlowInternal(aiInput);
+    // The AI output now includes { name: string, description: string } for each recipe
+    const result: GenerateRecipesFromIngredientsOutput = await generateRecipesFromIngredientsFlowInternal(aiInput); 
     
     if (result.recipes && result.recipes.length > 0) {
       return {
         message: 'Recipe ideas generated successfully!',
-        recipes: result.recipes,
+        recipes: result.recipes, // This is now an array of objects
         errors: null,
         timestamp: Date.now(),
+        photoDataUriUsedForIdeas: photoDataUriForRecipeSource || null,
       };
     } else {
       return {
@@ -125,6 +138,7 @@ export async function generateRecipesFromIngredientsListAction(
         recipes: [],
         errors: null,
         timestamp: Date.now(),
+        photoDataUriUsedForIdeas: photoDataUriForRecipeSource || null,
       };
     }
   } catch (error) {
@@ -138,6 +152,7 @@ export async function generateRecipesFromIngredientsListAction(
       errors: { general: [errorMessage] },
       recipes: null,
       timestamp: Date.now(),
+      photoDataUriUsedForIdeas: photoDataUriForRecipeSource || null,
     };
   }
 }
@@ -189,11 +204,9 @@ export async function generateSimpleRecipeDetailsAction(
     };
     const result: GenerateSimpleRecipeDetailsOutput = await generateSimpleRecipeDetailsFlowInternal(aiInput);
     
-    // The AI flow now returns an object that should match the Recipe type structure.
-    // We need to ensure `sourceImage` is handled if passed separately or nullified.
     const recipeOutput: Recipe = {
         ...result,
-        sourceImage: undefined, // sourceImage is for user-uploaded ingredients image, AI provides imageUrl for dish
+        sourceImage: undefined, 
     };
 
     return {
@@ -216,3 +229,4 @@ export async function generateSimpleRecipeDetailsAction(
     };
   }
 }
+

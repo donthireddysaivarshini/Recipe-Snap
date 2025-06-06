@@ -19,10 +19,15 @@ const GenerateRecipesFromIngredientsInputSchema = z.object({
 });
 export type GenerateRecipesFromIngredientsInput = z.infer<typeof GenerateRecipesFromIngredientsInputSchema>;
 
+const RecipeIdeaSchema = z.object({
+  name: z.string().describe("The recipe name in simple, descriptive English."),
+  description: z.string().describe("A very short (1 sentence) and simple description of the recipe idea using basic English, suitable for a card display."),
+});
+
 const GenerateRecipesFromIngredientsOutputSchema = z.object({
   recipes: z
-    .array(z.string())
-    .describe('An array of recipe name suggestions in simple, easy-to-understand English, based on the provided ingredients.'),
+    .array(RecipeIdeaSchema)
+    .describe('An array of recipe ideas, each with a simple name and a very short description, based on the provided ingredients.'),
 });
 export type GenerateRecipesFromIngredientsOutput = z.infer<typeof GenerateRecipesFromIngredientsOutputSchema>;
 
@@ -35,8 +40,10 @@ const prompt = ai.definePrompt({
   input: {schema: GenerateRecipesFromIngredientsInputSchema},
   output: {schema: GenerateRecipesFromIngredientsOutputSchema},
   prompt: `You are a recipe suggestion AI. Your user understands basic English and is new to cooking.
-  Given a list of ingredients, suggest 3-5 recipe names.
-  Recipe names should be very simple, descriptive, and easy for a beginner to understand (e.g., "Easy Chicken Stir-fry", "Simple Tomato Soup", "Basic Potato Curry").
+  Given a list of ingredients, suggest 3-5 recipe ideas.
+  For each recipe idea:
+  1.  Provide a 'name' that is very simple, descriptive, and easy for a beginner to understand (e.g., "Easy Chicken Stir-fry", "Simple Tomato Soup", "Basic Potato Curry").
+  2.  Provide a 'description' that is a single, very short sentence explaining what the dish is in basic English. This description will be shown on a small card. (e.g., "A quick and tasty chicken dish with vegetables.", "A warm and comforting soup made with fresh tomatoes.", "An easy potato curry for a simple meal.").
   Prioritize recipes that make good use of the provided ingredients.
 
   Ingredients available:
@@ -44,7 +51,7 @@ const prompt = ai.definePrompt({
   - {{{this}}}
   {{/each}}
 
-  Respond with an array of simple recipe name suggestions.`,
+  Respond with an array of recipe ideas, each being an object with 'name' and 'description'.`,
 });
 
 const generateRecipesFromIngredientsFlow = ai.defineFlow(
@@ -58,3 +65,4 @@ const generateRecipesFromIngredientsFlow = ai.defineFlow(
     return output!;
   }
 );
+

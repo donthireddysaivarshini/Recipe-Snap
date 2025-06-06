@@ -9,24 +9,27 @@ import ImageUpload from '@/components/recipe/ImageUpload';
 import RecipeList from '@/components/recipe/RecipeList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Lightbulb, AlertCircle, Sparkles, Pencil, Trash2, PlusCircle, ChefHat } from 'lucide-react';
 import type { LocalSavedRecipe } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
+
 
 const initialAnalyzeState: AnalyzeIngredientsState = {
   message: null,
   ingredients: null,
   errors: null,
+  photoDataUriUsedInAnalysis: null,
 };
 
 const initialGenerateState: GenerateRecipesState = {
   message: null,
-  recipes: null,
+  recipes: null, // Will now be Array<{ name: string; description: string; }>
   errors: null,
+  photoDataUriUsedForIdeas: null,
 };
 
 function AnalyzeIngredientsSubmitButton() {
@@ -77,38 +80,38 @@ export default function RecipeGeneratorPage() {
 
   const handleImageUpload = (file: File, dataUri: string) => {
     setPhotoDataUri(dataUri);
-    // currentStep will be determined by useEffect based on new photoDataUri
-    // Resetting generateState is implicitly handled as new analysis will lead to new generateAction.
+    setEditableIngredients([]); // Clear previous ingredients
+    // currentStep will be determined by useEffect based on new photoDataUri and cleared states
   };
 
   // Centralized useEffect for determining currentStep
   useEffect(() => {
     if (!photoDataUri) {
       setCurrentStep('initial');
-    } else if (generateState?.recipes && generateState.recipes.length > 0) {
+      return;
+    }
+
+    // Check if generateState is valid for the current photo
+    if (generateState?.recipes && generateState.recipes.length > 0 && generateState.photoDataUriUsedForIdeas === photoDataUri) {
       setCurrentStep('showingRecipes');
-    } else if (analyzeState?.ingredients && analyzeState.ingredients.length >= 0) { 
-      // Allows for empty ingredients list from AI (e.g. "no ingredients found") to still proceed to editing
+    } 
+    // Check if analyzeState is valid for the current photo
+    else if (analyzeState?.ingredients && analyzeState.ingredients.length >= 0 && analyzeState.photoDataUriUsedInAnalysis === photoDataUri) {
       setCurrentStep('editingIngredients');
-    } else {
-      // Default: photo is present, but no analysis results yet or no recipes generated.
-      // This could be immediately after upload, before analysis completes.
-      // Or if analysis and generation states are somehow cleared but photo remains.
-      // It's safer to go to 'initial' if the other states aren't definitive.
+    } 
+    // Default to initial if no valid state matches current photo or if analysis is pending
+    else if (isAnalyzePending) {
+      setCurrentStep('initial'); // Or a specific 'analyzing' step if desired
+    }
+    else {
       setCurrentStep('initial');
     }
-  }, [photoDataUri, analyzeState?.ingredients, generateState?.recipes]);
+  }, [photoDataUri, analyzeState, generateState, isAnalyzePending]);
 
-  // Effect to clear editableIngredients when starting over (no photo)
+
+  // Effect to update editableIngredients ONLY from NEW AI analysis results matching current photo
   useEffect(() => {
-    if (!photoDataUri) {
-      setEditableIngredients([]);
-    }
-  }, [photoDataUri]);
-  
-  // Effect to update editableIngredients ONLY from NEW AI analysis results and show toast
-  useEffect(() => {
-    if (analyzeState?.timestamp) { // Indicates a new analysis action has completed
+    if (analyzeState?.timestamp && analyzeState.photoDataUriUsedInAnalysis === photoDataUri) { 
       if (analyzeState.ingredients) {
         setEditableIngredients(analyzeState.ingredients);
       }
@@ -120,11 +123,11 @@ export default function RecipeGeneratorPage() {
          toast({ title: (analyzeState.ingredients && analyzeState.ingredients.length > 0) ? "Analysis Complete" : "Notice", description: analyzeState.message });
       }
     }
-  }, [analyzeState, toast]); // Depends on the entire analyzeState object to catch timestamp changes
+  }, [analyzeState, photoDataUri, toast]); 
 
-  // Effect for recipe generation toasts
+  // Effect for recipe generation toasts, only if for current photo
   useEffect(() => {
-    if (generateState?.timestamp) { // A new recipe generation action has completed
+    if (generateState?.timestamp && generateState.photoDataUriUsedForIdeas === photoDataUri) { 
       if (generateState.errors) {
         const errorMsg = generateState.errors.general?.join(', ') || generateState.errors.ingredients?.join(', ') || 'Error generating recipe ideas.';
         toast({ variant: "destructive", title: "Recipe Idea Error", description: errorMsg });
@@ -132,7 +135,7 @@ export default function RecipeGeneratorPage() {
         toast({ title: "Recipe Ideas Ready!", description: generateState.message });
       }
     }
-  }, [generateState, toast]); // Depends on the entire generateState object
+  }, [generateState, photoDataUri, toast]); 
 
 
   const handleAddIngredient = () => {
@@ -149,14 +152,39 @@ export default function RecipeGeneratorPage() {
   };
 
   const recipesToDisplay: LocalSavedRecipe[] = useMemo(() => {
-    if (currentStep === 'showingRecipes' && generateState?.recipes && photoDataUri) {
-      return generateState.recipes.map(name => ({ 
-        name, 
+    // Ensure we're in showingRecipes step and recipes are for the current photo
+    if (currentStep === 'showingRecipes' && generateState?.recipes && photoDataUri && generateState.photoDataUriUsedForIdeas === photoDataUri) {
+      return generateState.recipes.map(recipeIdea => ({ // recipeIdea is now { name: string; description: string; }
+        name: recipeIdea.name,
+        description: recipeIdea.description, // Pass the AI-generated description
         sourceImage: photoDataUri 
       }));
     }
     return [];
-  }, [currentStep, generateState?.recipes, photoDataUri]);
+  }, [currentStep, generateState, photoDataUri]);
+
+  const handleStartOver = () => {
+    setPhotoDataUri(null);
+    // analyzeState and generateState will be reset by their respective actions if new analysis is triggered.
+    // currentStep will reset to 'initial' via useEffect when photoDataUri is null.
+    setEditableIngredients([]);
+    setNewIngredient("");
+  };
+
+  const handleRefineIngredients = () => {
+    // This assumes analyzeState is still valid for the current photoDataUri
+    // If analyzeState is not set or for a different photo, this might not work as expected
+    // But the main useEffect for currentStep should handle this.
+    if (photoDataUri && analyzeState?.photoDataUriUsedInAnalysis === photoDataUri && analyzeState.ingredients) {
+      setEditableIngredients(analyzeState.ingredients); // Re-populate from analysis
+      setCurrentStep('editingIngredients');
+    } else if (photoDataUri) {
+      // Fallback: if analyzeState is stale, but we have a photo, allow manual editing
+      setCurrentStep('editingIngredients');
+    } else {
+      handleStartOver(); // No photo, just start over
+    }
+  };
 
 
   return (
@@ -164,9 +192,9 @@ export default function RecipeGeneratorPage() {
       <section className="text-center py-8 bg-card rounded-lg shadow-sm">
         <h1 className="text-3xl md:text-4xl font-headline font-bold mb-2 text-primary">Recipe Idea Generator</h1>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          {currentStep === 'initial' && "1. Upload a photo of your ingredients."}
-          {currentStep === 'editingIngredients' && "2. Check and change the ingredients list. Then, get recipe ideas!"}
-          {currentStep === 'showingRecipes' && "3. Here are some recipe ideas for you!"}
+          {currentStep === 'initial' && "Upload a photo of your ingredients."}
+          {currentStep === 'editingIngredients' && "Check and change the ingredients list. Then, get recipe ideas!"}
+          {currentStep === 'showingRecipes' && "Here are some recipe ideas for you!"}
         </p>
       </section>
 
@@ -180,14 +208,14 @@ export default function RecipeGeneratorPage() {
           {photoDataUri && (
             <input type="hidden" name="photoDataUri" value={photoDataUri} />
           )}
-          {analyzeState?.errors?.photoDataUri && (
+          {analyzeState?.errors?.photoDataUri && analyzeState.photoDataUriUsedInAnalysis === photoDataUri && (
             <Alert variant="destructive" className="my-4">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Image Error</AlertTitle>
               <AlertDescription>{analyzeState.errors.photoDataUri.join(', ')}</AlertDescription>
             </Alert>
           )}
-          {analyzeState?.errors?.general && (
+          {analyzeState?.errors?.general && analyzeState.photoDataUriUsedInAnalysis === photoDataUri && (
              <Alert variant="destructive" className="my-4">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Analysis Error</AlertTitle>
@@ -237,7 +265,7 @@ export default function RecipeGeneratorPage() {
               </Alert>
             </div>
             
-            {(editableIngredients.length > 0 || (analyzeState?.ingredients && analyzeState.ingredients.length === 0 && photoDataUri && !isAnalyzePending)) && (
+            {(editableIngredients.length > 0 || (analyzeState?.ingredients && analyzeState.ingredients.length === 0 && analyzeState.photoDataUriUsedInAnalysis === photoDataUri && !isAnalyzePending)) && (
               <div className="space-y-2">
                 <h3 className="text-lg font-medium text-foreground">Ingredients List:</h3>
                 {editableIngredients.length > 0 ? (
@@ -290,14 +318,17 @@ export default function RecipeGeneratorPage() {
             </div>
             <form action={generateAction} className="space-y-4 pt-6 border-t">
               <input type="hidden" name="ingredients" value={editableIngredients.join(',')} />
-               {generateState?.errors?.ingredients && (
+              {photoDataUri && ( /* Pass the photoDataUri to associate with generated recipes */
+                <input type="hidden" name="photoDataUriForRecipeSource" value={photoDataUri} />
+              )}
+               {generateState?.errors?.ingredients && generateState.photoDataUriUsedForIdeas === photoDataUri && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Ingredient Error</AlertTitle>
                   <AlertDescription>{generateState.errors.ingredients.join(', ')}</AlertDescription>
                 </Alert>
               )}
-              {generateState?.errors?.general && (
+              {generateState?.errors?.general && generateState.photoDataUriUsedForIdeas === photoDataUri && (
                  <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Recipe Idea Error</AlertTitle>
@@ -305,7 +336,7 @@ export default function RecipeGeneratorPage() {
                 </Alert>
               )}
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <Button variant="outline" onClick={() => { setPhotoDataUri(null); }} disabled={isGeneratePending}>
+                <Button variant="outline" onClick={handleStartOver} disabled={isGeneratePending}>
                   Start Over (New Image)
                 </Button>
                 <GenerateRecipesSubmitButton />
@@ -328,21 +359,21 @@ export default function RecipeGeneratorPage() {
           <RecipeList 
             recipes={recipesToDisplay} 
             title="Voila! Here are your recipe ideas:" 
-            hideCardImage={false} 
+            hideCardImage={false} // Show image for generated recipes
             ingredientsForCards={editableIngredients.join(',')}
           />
            <div className="text-center mt-8 space-y-3 sm:space-y-0 sm:space-x-4">
-             <Button variant="outline" onClick={() => setCurrentStep('editingIngredients')}>
+             <Button variant="outline" onClick={handleRefineIngredients}>
                 <Pencil className="mr-2 h-4 w-4"/> Refine Ingredients
             </Button>
-            <Button variant="default" onClick={() => { setPhotoDataUri(null); }}>
+            <Button variant="default" onClick={handleStartOver}>
               Start New Search
             </Button>
           </div>
         </section>
       )}
 
-      {currentStep === 'showingRecipes' && recipesToDisplay.length === 0 && !isGeneratePending && (
+      {currentStep === 'showingRecipes' && recipesToDisplay.length === 0 && !isGeneratePending && generateState?.photoDataUriUsedForIdeas === photoDataUri && (
         <Alert className="mt-8">
           <Lightbulb className="h-4 w-4" />
           <AlertTitle>No Recipe Ideas This Time</AlertTitle>
@@ -350,10 +381,10 @@ export default function RecipeGeneratorPage() {
             We couldn&apos;t find any recipe ideas with that list of ingredients. Try changing your ingredients or starting over with a new image.
           </AlertDescription>
            <div className="text-center mt-6 space-y-3 sm:space-y-0 sm:space-x-4">
-             <Button variant="default" onClick={() => setCurrentStep('editingIngredients')}>
+             <Button variant="default" onClick={handleRefineIngredients}>
                 <Pencil className="mr-2 h-4 w-4"/> Change Ingredient List
             </Button>
-            <Button variant="outline" onClick={() => { setPhotoDataUri(null); }}>
+            <Button variant="outline" onClick={handleStartOver}>
               Try New Image
             </Button>
           </div>
@@ -365,10 +396,10 @@ export default function RecipeGeneratorPage() {
             <Lightbulb className="h-4 w-4 text-primary" />
             <AlertTitle className="text-primary font-semibold">How to Get Recipe Ideas:</AlertTitle>
             <AlertDescription className="text-primary/80 space-y-1">
-                <p>1. Upload an image of your food items.</p>
-                <p>2. Our AI will try to list the ingredients it sees.</p>
-                <p>3. You can then add or remove ingredients from this list.</p>
-                <p>4. Click "Get Recipe Ideas" for suggestions based on your final list!</p>
+                <p>Upload an image of your food items.</p>
+                <p>Our AI will try to list the ingredients it sees.</p>
+                <p>You can then add or remove ingredients from this list.</p>
+                <p>Click "Get Recipe Ideas" for suggestions based on your final list!</p>
             </AlertDescription>
         </Alert>
       )}
