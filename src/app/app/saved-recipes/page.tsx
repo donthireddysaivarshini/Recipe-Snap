@@ -6,16 +6,16 @@ import { useSavedRecipes } from '@/contexts/SavedRecipesContext';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { BookHeart, PlusCircle } from 'lucide-react';
-import type { LocalSavedRecipe } from '@/lib/types'; // Ensure LocalSavedRecipe is imported if not already
+import type { LocalSavedRecipe, Recipe } from '@/lib/types'; // Ensure Recipe is imported
 
 export default function SavedRecipesPage() {
   const { savedRecipes } = useSavedRecipes(); // savedRecipes here are full Recipe objects
 
-  const recipesToDisplay: LocalSavedRecipe[] = savedRecipes.map(r => {
-    // Directly use the sourceImage from the saved Recipe object.
+  const recipesToDisplay: LocalSavedRecipe[] = savedRecipes.map((r: Recipe) => {
     return {
       name: r.name,
-      sourceImage: r.sourceImage // Pass r.sourceImage (user-uploaded image) directly
+      sourceImage: r.sourceImage, // Pass r.sourceImage (user-uploaded image) directly
+      description: r.description, // Pass the description from the full Recipe object
     };
   });
 

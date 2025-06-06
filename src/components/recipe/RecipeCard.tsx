@@ -8,7 +8,7 @@ import type { LocalSavedRecipe } from '@/lib/types';
 import { slugify } from '@/lib/utils';
 
 interface RecipeCardProps {
-  recipe: LocalSavedRecipe; // Contains name and sourceImage (user-uploaded)
+  recipe: LocalSavedRecipe; // Contains name, sourceImage, and optional description
   isLink?: boolean;
   hideImage?: boolean;
   ingredientsForLink?: string; // Comma-separated string of ingredients
@@ -22,7 +22,6 @@ export default function RecipeCard({ recipe, isLink = true, hideImage = false, i
   const handleClick = (e: React.MouseEvent) => {
     if (isDataUri && typeof window !== 'undefined' && window.sessionStorage) {
       try {
-        // Store the user-uploaded image for the detail page
         sessionStorage.setItem(`tempImage_${slug}`, recipe.sourceImage!);
       } catch (err) {
         console.warn("Session storage not available for temp image.", err);
@@ -32,9 +31,8 @@ export default function RecipeCard({ recipe, isLink = true, hideImage = false, i
 
   let href = `/app/recipe/${slug}?name=${encodeURIComponent(recipe.name)}`;
   if (isDataUri) {
-    href += `&tempImageKey=${slug}`; // Key to retrieve data URI from session storage
+    href += `&tempImageKey=${slug}`;
   } else if (recipe.sourceImage) {
-    // If sourceImage is a regular URL (less likely for user uploads now, but for completeness)
     href += `&image=${encodeURIComponent(recipe.sourceImage)}`;
   }
   if (ingredientsForLink) {
@@ -47,7 +45,7 @@ export default function RecipeCard({ recipe, isLink = true, hideImage = false, i
       {!hideImage && (
         <CardHeader className="p-0">
           <div className="aspect-[4/3] relative w-full overflow-hidden group">
-            {recipe.sourceImage ? ( // This sourceImage is the user-uploaded one
+            {recipe.sourceImage ? (
               <Image
                 src={recipe.sourceImage}
                 alt={`Ingredients for ${recipe.name}`}
@@ -67,7 +65,7 @@ export default function RecipeCard({ recipe, isLink = true, hideImage = false, i
       <CardContent className={`p-4 flex-grow ${hideImage ? 'pt-6' : ''}`}>
         <CardTitle className="font-headline text-xl mb-2 line-clamp-2">{recipe.name}</CardTitle>
         <CardDescription className="text-sm line-clamp-3 text-muted-foreground">
-          A simple recipe suggestion. Click to see easy instructions.
+          {recipe.description || "A simple recipe suggestion. Click to see easy instructions."}
         </CardDescription>
       </CardContent>
       <CardFooter className="p-4 border-t">
