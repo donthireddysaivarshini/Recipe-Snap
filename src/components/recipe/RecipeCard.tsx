@@ -3,17 +3,43 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Clock, Users, Image as ImageIcon } from 'lucide-react';
-import type { LocalSavedRecipe } from '@/lib/types'; // Using this for consistency as it has name and sourceImage
+import type { LocalSavedRecipe } from '@/lib/types';
+import { slugify } from '@/lib/utils'; // Import slugify
 
 interface RecipeCardProps {
-  recipe: LocalSavedRecipe; // The AI returns recipe names, which we treat as LocalSavedRecipe structure
+  recipe: LocalSavedRecipe;
   isLink?: boolean;
 }
 
-// Helper to create a slug from a recipe name
-const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-
 export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
+  const slug = slugify(recipe.name);
+  const isDataUri = recipe.sourceImage && recipe.sourceImage.startsWith('data:image/');
+
+  const handleClick = (e: React.MouseEvent) => {
+    // This handler is specifically for when isDataUri is true and we want to use sessionStorage.
+    // It's attached to the Link component.
+    if (isDataUri && typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        sessionStorage.setItem(`tempImage_${slug}`, recipe.sourceImage!);
+      } catch (err) {
+        console.warn("Session storage not available for temp image. Detail page might not show user-uploaded image.", err);
+        // If sessionStorage fails, the tempImageKey will still be in the URL,
+        // but retrieval will fail on the detail page, leading to a placeholder.
+      }
+    }
+    // Default link navigation will proceed.
+  };
+
+  let href = `/app/recipe/${slug}?name=${encodeURIComponent(recipe.name)}`;
+  if (isDataUri) {
+    // Always add tempImageKey if it's a data URI. handleClick will try to set it.
+    href += `&tempImageKey=${slug}`;
+  } else if (recipe.sourceImage) {
+    // If it's a regular URL (not a data URI), pass it directly.
+    href += `&image=${encodeURIComponent(recipe.sourceImage)}`;
+  }
+  // If recipe.sourceImage is null/undefined, no image param is added.
+
   const cardContent = (
     <Card className="h-full flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
       <CardHeader className="p-0">
@@ -36,7 +62,6 @@ export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="font-headline text-xl mb-2 line-clamp-2">{recipe.name}</CardTitle>
-        {/* Mocked details since AI doesn't provide them */}
         <CardDescription className="text-sm line-clamp-3">
           A delightful dish made from the provided ingredients. Perfect for a quick meal.
         </CardDescription>
@@ -63,7 +88,7 @@ export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
 
   if (isLink) {
     return (
-      <Link href={`/app/recipe/${slugify(recipe.name)}?name=${encodeURIComponent(recipe.name)}&image=${encodeURIComponent(recipe.sourceImage || '')}`} className="block group h-full">
+      <Link href={href} onClick={isDataUri ? handleClick : undefined} className="block group h-full">
         {cardContent}
       </Link>
     );
