@@ -1,9 +1,10 @@
+
 'use server';
 
 /**
- * @fileOverview An AI agent that analyzes ingredients from a photo and suggests recipes.
+ * @fileOverview An AI agent that analyzes ingredients from a photo.
  *
- * - analyzeIngredients - A function that handles the ingredient analysis and recipe suggestion process.
+ * - analyzeIngredients - A function that handles the ingredient analysis.
  * - AnalyzeIngredientsInput - The input type for the analyzeIngredients function.
  * - AnalyzeIngredientsOutput - The return type for the analyzeIngredients function.
  */
@@ -21,9 +22,9 @@ const AnalyzeIngredientsInputSchema = z.object({
 export type AnalyzeIngredientsInput = z.infer<typeof AnalyzeIngredientsInputSchema>;
 
 const AnalyzeIngredientsOutputSchema = z.object({
-  recipes: z
+  ingredients: z
     .array(z.string())
-    .describe('An array of recipe suggestions based on the identified ingredients.'),
+    .describe('An array of identified ingredient names from the photo.'),
 });
 export type AnalyzeIngredientsOutput = z.infer<typeof AnalyzeIngredientsOutputSchema>;
 
@@ -35,9 +36,10 @@ const prompt = ai.definePrompt({
   name: 'analyzeIngredientsPrompt',
   input: {schema: AnalyzeIngredientsInputSchema},
   output: {schema: AnalyzeIngredientsOutputSchema},
-  prompt: `You are a recipe suggestion AI. Given a photo of ingredients, you will suggest recipes that can be made using those ingredients.
-
-  Respond with an array of recipe suggestions.
+  prompt: `You are an ingredient recognition AI. Given a photo of ingredients, identify all visible food ingredients.
+  Focus on common names for ingredients. For example, if you see a 'Granny Smith apple', just return 'apple'.
+  If you see 'boneless, skinless chicken thighs', return 'chicken'.
+  Return a list of unique ingredient names.
 
   Ingredients Photo: {{media url=photoDataUri}}`,
 });
