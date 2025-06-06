@@ -6,20 +6,17 @@ import { useSavedRecipes } from '@/contexts/SavedRecipesContext';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { BookHeart, PlusCircle } from 'lucide-react';
-import { slugify } from '@/lib/utils'; // Import slugify
+import type { LocalSavedRecipe } from '@/lib/types'; // Ensure LocalSavedRecipe is imported if not already
 
 export default function SavedRecipesPage() {
-  const { savedRecipes } = useSavedRecipes();
+  const { savedRecipes } = useSavedRecipes(); // savedRecipes here are full Recipe objects
 
-  const recipesToDisplay = savedRecipes.map(r => {
-    // Ensure there's always an image URL.
-    // Prefer user's uploaded sourceImage, then the recipe's imageUrl, then a final fallback.
-    const recipeNameForImage = r.name || "Recipe";
-    const displayImage = r.sourceImage || r.imageUrl || `https://placehold.co/600x400.png?text=${encodeURIComponent(recipeNameForImage)}`;
-    
+  const recipesToDisplay: LocalSavedRecipe[] = savedRecipes.map(r => {
+    // Directly use the sourceImage from the saved Recipe object.
+    // If r.sourceImage is undefined or null, RecipeCard will handle the fallback (e.g., show ImageIcon).
     return {
       name: r.name,
-      sourceImage: displayImage
+      sourceImage: r.sourceImage // Pass r.sourceImage (user-uploaded image) directly
     };
   });
 
