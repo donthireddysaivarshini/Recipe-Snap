@@ -15,6 +15,7 @@ import type { LocalSavedRecipe } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label'; // Added import
 
 const initialAnalyzeState: AnalyzeIngredientsState = {
   message: null,
@@ -372,3 +373,5 @@ export default function RecipeGeneratorPage() {
     </div>
   );
 }
+
+    
