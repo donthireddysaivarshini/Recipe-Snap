@@ -7,9 +7,10 @@ import { getMockRecipeDetails } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { Recipe } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react'; // Import 'use'
 
-export default function RecipeDetailPage({ params }: { params: { id: string } }) {
+export default function RecipeDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise); // Unwrap the promise
   const searchParams = useSearchParams();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,11 +46,11 @@ export default function RecipeDetailPage({ params }: { params: { id: string } })
     
     const currentRecipe = getMockRecipeDetails(recipeNameParam, finalRecipeImage);
     // Ensure the ID from the route param (slug) is used, as getMockRecipeDetails might generate its own based on name
-    currentRecipe.id = params.id || currentRecipe.id; 
+    currentRecipe.id = params.id || currentRecipe.id; // Use resolved params.id
     setRecipe(currentRecipe);
     setIsLoading(false);
 
-  }, [searchParams, params.id]);
+  }, [searchParams, params.id]); // Use resolved params.id in dependency array
 
 
   if (isLoading) {
