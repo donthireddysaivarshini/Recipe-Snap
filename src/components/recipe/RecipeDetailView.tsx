@@ -1,10 +1,8 @@
 
 "use client";
 
-import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Clock, Users, Utensils, Soup, Image as ImageIcon } from 'lucide-react';
+import { Clock, Users, Utensils, Soup } from 'lucide-react';
 import type { Recipe } from '@/lib/types';
 import SaveRecipeButton from './SaveRecipeButton';
 
@@ -13,34 +11,17 @@ interface RecipeDetailViewProps {
 }
 
 export default function RecipeDetailView({ recipe }: RecipeDetailViewProps) {
-  const displayImage = recipe.sourceImage; // Prioritize sourceImage (user-uploaded image)
-  // If sourceImage is present, it's likely "food ingredients". If not, the fallback is a generic icon.
-  const imageHint = recipe.sourceImage ? "food ingredients" : "placeholder icon";
-
   return (
     <Card className="overflow-hidden shadow-xl">
-      <CardHeader className="p-0 relative">
-        <div className="aspect-video w-full relative">
-          {displayImage ? (
-            <Image
-              src={displayImage}
-              alt={`Image of ${recipe.name}`}
-              layout="fill"
-              objectFit="cover"
-              data-ai-hint={imageHint}
-            />
-          ) : (
-             <div className="w-full h-full bg-muted flex items-center justify-center">
-              <ImageIcon size={64} className="text-muted-foreground" />
-            </div>
-          )}
-        </div>
-        <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/70 via-black/50 to-transparent">
-          <CardTitle className="font-headline text-3xl md:text-4xl text-white shadow-text mb-2">{recipe.name}</CardTitle>
-          <CardDescription className="text-gray-200 line-clamp-2 shadow-text">{recipe.description}</CardDescription>
-        </div>
-         <div className="absolute top-4 right-4 z-10">
-          <SaveRecipeButton recipe={recipe} />
+      <CardHeader className="p-6 border-b">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex-grow">
+            <CardTitle className="font-headline text-3xl md:text-4xl text-foreground mb-1">{recipe.name}</CardTitle>
+            <CardDescription className="text-muted-foreground line-clamp-3">{recipe.description}</CardDescription>
+          </div>
+          <div className="ml-auto shrink-0">
+            <SaveRecipeButton recipe={recipe} />
+          </div>
         </div>
       </CardHeader>
 
@@ -97,9 +78,3 @@ export default function RecipeDetailView({ recipe }: RecipeDetailViewProps) {
     </Card>
   );
 }
-
-// CSS for text shadow if needed, or use Tailwind utility if available
-// Add to globals.css or a style tag if specific:
-// .shadow-text { text-shadow: 0px 1px 3px rgba(0,0,0,0.5); }
-// For Tailwind, you can define a custom utility or use drop-shadow
-// For simplicity, I am omitting adding to globals.css directly here
