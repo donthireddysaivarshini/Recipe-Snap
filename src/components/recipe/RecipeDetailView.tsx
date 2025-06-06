@@ -13,8 +13,9 @@ interface RecipeDetailViewProps {
 }
 
 export default function RecipeDetailView({ recipe }: RecipeDetailViewProps) {
-  const displayImage = recipe.sourceImage || recipe.imageUrl;
-  const imageHint = recipe.sourceImage ? "food ingredients" : "cooked dish";
+  const displayImage = recipe.sourceImage; // Prioritize sourceImage (user-uploaded image)
+  // If sourceImage is present, it's likely "food ingredients". If not, the fallback is a generic icon.
+  const imageHint = recipe.sourceImage ? "food ingredients" : "placeholder icon";
 
   return (
     <Card className="overflow-hidden shadow-xl">
