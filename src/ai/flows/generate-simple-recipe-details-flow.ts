@@ -24,7 +24,7 @@ const GenerateSimpleRecipeDetailsOutputSchema = z.object({
   name: z.string().describe("The recipe name in simple, descriptive English."),
   description: z.string().describe("A very short (1-2 sentences) and simple description of the recipe using basic English."),
   ingredients: z.array(IngredientSchema).describe("List of ingredients with simple names, quantities, and units."),
-  instructions: z.array(z.string()).describe("Step-by-step cooking instructions in very basic English, explaining actions clearly, specifying heat levels (low, medium, high) and cooking times."),
+  instructions: z.array(z.string()).describe("Step-by-step cooking instructions in very basic English, explaining actions clearly, specifying heat levels (low, medium, high) and cooking times. Each instruction should be a plain string without any numbering like '1.' or 'Step 1:' as the display will handle numbering."),
   prepTime: z.string().describe("Estimated preparation time (e.g., '10 minutes', 'about 15 minutes')."),
   cookTime: z.string().describe("Estimated cooking time (e.g., '20 minutes', 'around 30 minutes')."),
   servings: z.string().describe("Number of servings the recipe makes (e.g., '2 people', 'serves 3-4')."),
@@ -76,13 +76,14 @@ Follow these instructions VERY CAREFULLY:
         *   Quantity: "1", Unit: "piece" (for chicken, fish etc.)
         *   If using grams or ml, keep numbers simple (e.g., "100 grams flour", "200 ml water").
 5.  **instructions**:
-    *   Provide clear, numbered, step-by-step instructions.
+    *   Provide clear, step-by-step instructions.
+    *   Return these instructions as an array of strings. **DO NOT** include any numbering (like "1.", "Step 1:", "a.") in the instruction strings themselves. The system will automatically number them.
     *   Use very simple English, short sentences.
     *   Explain every action (e.g., "Cut the onion into small pieces," "Put a pan on the stove," "Turn the heat to medium," "Wait for the oil to get hot").
     *   Specify heat levels: "low heat," "medium heat," or "high heat."
     *   Mention cooking times for steps when important (e.g., "Cook for 5 minutes," "Stir for 1 minute until it turns brown").
     *   Be explicit about the order of adding ingredients.
-    *   Example instruction: "1. Cut the chicken into small pieces. 2. Put 2 spoons of oil in a pan. 3. Turn the stove to medium heat. 4. When the oil is hot, add the chicken pieces. 5. Cook for 5-7 minutes until chicken is white. Stir sometimes."
+    *   Example instruction (if it were the first step): "Cut the chicken into small pieces." (The next item in array would be the next step's text).
 6.  **prepTime**: Estimate preparation time in simple terms (e.g., "About 10 minutes").
 7.  **cookTime**: Estimate cooking time in simple terms (e.g., "Around 20 minutes").
 8.  **servings**: State how many people the recipe serves (e.g., "For 2 people," "Makes 3 servings").
@@ -111,10 +112,11 @@ const generateSimpleRecipeDetailsFlow = ai.defineFlow(
         output.id = slugify(input.recipeName);
     } else if (output && output.id !== slugify(input.recipeName)) {
         // If LLM generates a different ID, prioritize the slugified one for consistency
-        // output.id = slugify(input.recipeName); 
+        // output.id = slugify(input.recipeName);
         // Decided to let LLM fill it as per prompt, but schema requires it.
         // If it is critical to override, uncomment above.
     }
     return output!;
   }
 );
+
