@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,32 +14,26 @@ interface RecipeCardProps {
 
 export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
   const slug = slugify(recipe.name);
+  // recipe.sourceImage on LocalSavedRecipe can be a data URI or a regular URL
   const isDataUri = recipe.sourceImage && recipe.sourceImage.startsWith('data:image/');
+  const imageHint = isDataUri ? "food ingredients" : "recipe photo";
 
   const handleClick = (e: React.MouseEvent) => {
-    // This handler is specifically for when isDataUri is true and we want to use sessionStorage.
-    // It's attached to the Link component.
     if (isDataUri && typeof window !== 'undefined' && window.sessionStorage) {
       try {
         sessionStorage.setItem(`tempImage_${slug}`, recipe.sourceImage!);
       } catch (err) {
         console.warn("Session storage not available for temp image. Detail page might not show user-uploaded image.", err);
-        // If sessionStorage fails, the tempImageKey will still be in the URL,
-        // but retrieval will fail on the detail page, leading to a placeholder.
       }
     }
-    // Default link navigation will proceed.
   };
 
   let href = `/app/recipe/${slug}?name=${encodeURIComponent(recipe.name)}`;
   if (isDataUri) {
-    // Always add tempImageKey if it's a data URI. handleClick will try to set it.
     href += `&tempImageKey=${slug}`;
   } else if (recipe.sourceImage) {
-    // If it's a regular URL (not a data URI), pass it directly.
     href += `&image=${encodeURIComponent(recipe.sourceImage)}`;
   }
-  // If recipe.sourceImage is null/undefined, no image param is added.
 
   const cardContent = (
     <Card className="h-full flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
@@ -46,14 +41,16 @@ export default function RecipeCard({ recipe, isLink = true }: RecipeCardProps) {
         <div className="aspect-[4/3] relative w-full overflow-hidden">
           {recipe.sourceImage ? (
             <Image
-              src={recipe.sourceImage}
-              alt={`Ingredients for ${recipe.name}`}
+              src={recipe.sourceImage} // This will now always be a string due to fallback in saved-recipes/page.tsx
+              alt={`Image for ${recipe.name}`}
               layout="fill"
               objectFit="cover"
               className="transition-transform duration-300 group-hover:scale-105"
-              data-ai-hint="food ingredients"
+              data-ai-hint={imageHint}
             />
           ) : (
+            // This else block should ideally not be reached if the fallback logic in saved-recipes page works.
+            // Kept for extreme robustness or if RecipeCard is used elsewhere without guaranteed sourceImage.
             <div className="w-full h-full bg-muted flex items-center justify-center">
               <ImageIcon size={48} className="text-muted-foreground" />
             </div>

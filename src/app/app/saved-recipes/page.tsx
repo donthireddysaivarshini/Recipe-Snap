@@ -1,3 +1,4 @@
+
 "use client";
 
 import RecipeList from '@/components/recipe/RecipeList';
@@ -5,19 +6,22 @@ import { useSavedRecipes } from '@/contexts/SavedRecipesContext';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { BookHeart, PlusCircle } from 'lucide-react';
+import { slugify } from '@/lib/utils'; // Import slugify
 
 export default function SavedRecipesPage() {
   const { savedRecipes } = useSavedRecipes();
 
-  // Convert saved Recipe objects to LocalSavedRecipe for RecipeList if needed,
-  // but RecipeCard can handle Recipe if sourceImage is mapped correctly.
-  // For simplicity, let's assume RecipeCard handles Recipe directly if types are compatible enough
-  // or RecipeList is updated to handle Recipe[]. The current RecipeCard expects LocalSavedRecipe.
-  // So, we map:
-  const recipesToDisplay = savedRecipes.map(r => ({
-    name: r.name,
-    sourceImage: r.sourceImage || r.imageUrl // Prefer sourceImage, fallback to imageUrl
-  }));
+  const recipesToDisplay = savedRecipes.map(r => {
+    // Ensure there's always an image URL.
+    // Prefer user's uploaded sourceImage, then the recipe's imageUrl, then a final fallback.
+    const recipeNameForImage = r.name || "Recipe";
+    const displayImage = r.sourceImage || r.imageUrl || `https://placehold.co/600x400.png?text=${encodeURIComponent(recipeNameForImage)}`;
+    
+    return {
+      name: r.name,
+      sourceImage: displayImage
+    };
+  });
 
   return (
     <div className="space-y-8">
