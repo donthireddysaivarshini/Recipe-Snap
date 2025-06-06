@@ -15,7 +15,7 @@ import type { LocalSavedRecipe } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label'; // Added import
+import { Label } from '@/components/ui/label';
 
 const initialAnalyzeState: AnalyzeIngredientsState = {
   message: null,
@@ -77,70 +77,62 @@ export default function RecipeGeneratorPage() {
 
   const handleImageUpload = (file: File, dataUri: string) => {
     setPhotoDataUri(dataUri);
-    setCurrentStep('initial'); 
-    setEditableIngredients([]); 
-    // Resetting generateState if a new image is uploaded is implicitly handled
-    // because new ingredients will lead to a new generateAction call.
+    // currentStep will be determined by useEffect based on new photoDataUri
+    // Resetting generateState is implicitly handled as new analysis will lead to new generateAction.
   };
 
-  // Effect to handle state changes from ingredient analysis
+  // Centralized useEffect for determining currentStep
   useEffect(() => {
-    if (analyzeState?.timestamp) { // A new analysis action has completed
+    if (!photoDataUri) {
+      setCurrentStep('initial');
+    } else if (generateState?.recipes && generateState.recipes.length > 0) {
+      setCurrentStep('showingRecipes');
+    } else if (analyzeState?.ingredients && analyzeState.ingredients.length >= 0) { 
+      // Allows for empty ingredients list from AI (e.g. "no ingredients found") to still proceed to editing
+      setCurrentStep('editingIngredients');
+    } else {
+      // Default: photo is present, but no analysis results yet or no recipes generated.
+      // This could be immediately after upload, before analysis completes.
+      // Or if analysis and generation states are somehow cleared but photo remains.
+      // It's safer to go to 'initial' if the other states aren't definitive.
+      setCurrentStep('initial');
+    }
+  }, [photoDataUri, analyzeState?.ingredients, generateState?.recipes]);
+
+  // Effect to clear editableIngredients when starting over (no photo)
+  useEffect(() => {
+    if (!photoDataUri) {
+      setEditableIngredients([]);
+    }
+  }, [photoDataUri]);
+  
+  // Effect to update editableIngredients ONLY from NEW AI analysis results and show toast
+  useEffect(() => {
+    if (analyzeState?.timestamp) { // Indicates a new analysis action has completed
+      if (analyzeState.ingredients) {
+        setEditableIngredients(analyzeState.ingredients);
+      }
+      // Toast logic for analysis completion
       if (analyzeState.errors) {
         const errorMsg = analyzeState.errors.general?.join(', ') || analyzeState.errors.photoDataUri?.join(', ') || 'Error analyzing image.';
         toast({ variant: "destructive", title: "Analysis Error", description: errorMsg });
-      } else if (analyzeState.ingredients) {
-        // Sync editableIngredients with fresh AI results from a new analysis
-        setEditableIngredients(analyzeState.ingredients);
-        // Toast for completion
-        if (analyzeState.message && analyzeState.ingredients.length > 0) {
-           toast({ title: "Analysis Complete", description: analyzeState.message });
-        } else if (analyzeState.message) { // e.g. no ingredients found
-           toast({ title: "Notice", description: analyzeState.message });
-        }
+      } else if (analyzeState.message) {
+         toast({ title: (analyzeState.ingredients && analyzeState.ingredients.length > 0) ? "Analysis Complete" : "Notice", description: analyzeState.message });
       }
     }
+  }, [analyzeState, toast]); // Depends on the entire analyzeState object to catch timestamp changes
 
-    // Determine current UI step based on overall state (handles back navigation)
-    // If ingredients are analyzed, photo context exists, and recipes are not yet shown
-    if (photoDataUri && analyzeState?.ingredients && (!generateState?.recipes || generateState.recipes.length === 0)) {
-      setCurrentStep('editingIngredients');
-       // Ensure editableIngredients is synced if analyzeState has data but local state is empty (e.g., on back nav)
-       if (editableIngredients.length === 0 && analyzeState.ingredients.length > 0) {
-        setEditableIngredients(analyzeState.ingredients);
-      }
-    }
-  }, [analyzeState, photoDataUri, generateState?.recipes, toast, editableIngredients]); // Added editableIngredients to ensure it's up-to-date for comparison
-
-  // Effect to handle state changes from recipe generation
+  // Effect for recipe generation toasts
   useEffect(() => {
     if (generateState?.timestamp) { // A new recipe generation action has completed
       if (generateState.errors) {
         const errorMsg = generateState.errors.general?.join(', ') || generateState.errors.ingredients?.join(', ') || 'Error generating recipe ideas.';
         toast({ variant: "destructive", title: "Recipe Idea Error", description: errorMsg });
-      } else if (generateState.recipes) {
-        // Toast for completion
-        if (generateState.message) {
-          toast({ title: "Recipe Ideas Ready!", description: generateState.message });
-        }
+      } else if (generateState.recipes && generateState.message) {
+        toast({ title: "Recipe Ideas Ready!", description: generateState.message });
       }
     }
-    
-    // Determine current UI step based on overall state (handles back navigation)
-    // If recipes are generated and photo context exists
-    if (generateState?.recipes && photoDataUri) {
-      setCurrentStep('showingRecipes');
-    }
-  }, [generateState, photoDataUri, toast]);
-
-  // Effect to handle returning to initial state if photo is cleared
-  useEffect(() => {
-    if (!photoDataUri) {
-      setCurrentStep('initial');
-      setEditableIngredients([]); // Clear ingredients if going back to the very start
-      // Note: generateState is not explicitly reset here; new ingredient analysis will lead to new recipes.
-    }
-  }, [photoDataUri]);
+  }, [generateState, toast]); // Depends on the entire generateState object
 
 
   const handleAddIngredient = () => {
@@ -160,7 +152,7 @@ export default function RecipeGeneratorPage() {
     if (currentStep === 'showingRecipes' && generateState?.recipes && photoDataUri) {
       return generateState.recipes.map(name => ({ 
         name, 
-        sourceImage: photoDataUri
+        sourceImage: photoDataUri 
       }));
     }
     return [];
@@ -224,7 +216,7 @@ export default function RecipeGeneratorPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
               {photoDataUri && (
                 <Image 
                   src={photoDataUri} 
@@ -240,54 +232,63 @@ export default function RecipeGeneratorPage() {
                 <AlertTitle>Make the List Perfect!</AlertTitle>
                 <AlertDescription>
                   Add or remove ingredients below to get the best recipe ideas.
+                  The AI might not always be perfect.
                 </AlertDescription>
               </Alert>
             </div>
             
-            {editableIngredients.length > 0 && (
+            {(editableIngredients.length > 0 || (analyzeState?.ingredients && analyzeState.ingredients.length === 0 && photoDataUri && !isAnalyzePending)) && (
               <div className="space-y-2">
-                <h3 className="text-lg font-medium text-foreground">Ingredients Found/Edited:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {editableIngredients.map((ingredient, index) => (
-                    <Badge key={index} variant="secondary" className="py-1 px-3 text-sm flex items-center gap-2">
-                      <span>{ingredient}</span>
-                      <button type="button" onClick={() => handleRemoveIngredient(ingredient)} disabled={isGeneratePending} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+                <h3 className="text-lg font-medium text-foreground">Ingredients List:</h3>
+                {editableIngredients.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-background">
+                    {editableIngredients.map((ingredient, index) => (
+                      <Badge key={`${ingredient}-${index}`} variant="secondary" className="py-1.5 px-3 text-sm flex items-center gap-2 shadow-sm">
+                        <span>{ingredient}</span>
+                        <button 
+                            type="button" 
+                            onClick={() => handleRemoveIngredient(ingredient)} 
+                            disabled={isGeneratePending} 
+                            className="ml-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                            aria-label={`Remove ${ingredient}`}
+                            >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                   <Alert variant="default">
+                      <Lightbulb className="h-4 w-4" />
+                      <AlertTitle>No Ingredients Listed</AlertTitle>
+                      <AlertDescription>
+                      The AI didn&apos;t find any ingredients, or they were removed. Add some yourself to get recipe ideas.
+                      </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
-             {editableIngredients.length === 0 && photoDataUri && !isAnalyzePending && ( 
-                 <Alert variant="default">
-                    <Lightbulb className="h-4 w-4" />
-                    <AlertTitle>No Ingredients Listed</AlertTitle>
-                    <AlertDescription>
-                    The AI didn&apos;t find any ingredients, or you removed them. Add some yourself to get recipe ideas.
-                    </AlertDescription>
-                </Alert>
-            )}
 
-            <div className="flex gap-2 items-end">
+
+            <div className="flex gap-2 items-end pt-2">
               <div className="flex-grow space-y-1">
-                <Label htmlFor="new-ingredient-input" className="text-sm font-medium text-muted-foreground">Add Ingredient (e.g., tomato, chicken)</Label>
+                <Label htmlFor="new-ingredient-input" className="text-sm font-medium">Add Ingredient</Label>
                 <Input 
                   id="new-ingredient-input"
                   type="text" 
                   value={newIngredient} 
                   onChange={(e) => setNewIngredient(e.target.value)} 
-                  placeholder="Type ingredient and press Add"
+                  placeholder="e.g., tomato, chicken"
                   className="flex-grow"
                   disabled={isGeneratePending}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddIngredient();}}}
                 />
               </div>
               <Button onClick={handleAddIngredient} type="button" disabled={isGeneratePending || !newIngredient.trim()} className="shrink-0">
-                <PlusCircle className="h-4 w-4"/> <span className="ml-2 hidden sm:inline">Add</span>
+                <PlusCircle className="h-4 w-4"/> <span className="ml-1 sm:ml-2 hidden sm:inline">Add</span>
               </Button>
             </div>
-            <form action={generateAction} className="space-y-4 pt-4 border-t">
+            <form action={generateAction} className="space-y-4 pt-6 border-t">
               <input type="hidden" name="ingredients" value={editableIngredients.join(',')} />
                {generateState?.errors?.ingredients && (
                 <Alert variant="destructive">
@@ -304,8 +305,8 @@ export default function RecipeGeneratorPage() {
                 </Alert>
               )}
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <Button variant="outline" onClick={() => { setPhotoDataUri(null); /* useEffect will handle currentStep and editableIngredients */ }} disabled={isGeneratePending}>
-                  Start Over with New Image
+                <Button variant="outline" onClick={() => { setPhotoDataUri(null); }} disabled={isGeneratePending}>
+                  Start Over (New Image)
                 </Button>
                 <GenerateRecipesSubmitButton />
               </div>
@@ -317,7 +318,8 @@ export default function RecipeGeneratorPage() {
       {isGeneratePending && currentStep === 'editingIngredients' && (
         <div className="text-center py-10">
             <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary mb-4" />
-            <p className="text-lg font-semibold text-muted-foreground">Getting recipe ideas for you...</p>
+            <p className="text-lg font-semibold text-muted-foreground">Whipping up recipe ideas...</p>
+            <p className="text-sm text-muted-foreground">This can take a few seconds.</p>
         </div>
       )}
 
@@ -325,16 +327,16 @@ export default function RecipeGeneratorPage() {
         <section>
           <RecipeList 
             recipes={recipesToDisplay} 
-            title="Here are some recipe ideas!" 
+            title="Voila! Here are your recipe ideas:" 
             hideCardImage={false} 
             ingredientsForCards={editableIngredients.join(',')}
           />
-           <div className="text-center mt-8 space-x-4">
+           <div className="text-center mt-8 space-y-3 sm:space-y-0 sm:space-x-4">
              <Button variant="outline" onClick={() => setCurrentStep('editingIngredients')}>
-                <Pencil className="mr-2 h-4 w-4"/> Change Ingredients
+                <Pencil className="mr-2 h-4 w-4"/> Refine Ingredients
             </Button>
-            <Button variant="default" onClick={() => { setPhotoDataUri(null); /* useEffect will handle currentStep and editableIngredients */ }}>
-              Start New Search (New Image)
+            <Button variant="default" onClick={() => { setPhotoDataUri(null); }}>
+              Start New Search
             </Button>
           </div>
         </section>
@@ -345,13 +347,13 @@ export default function RecipeGeneratorPage() {
           <Lightbulb className="h-4 w-4" />
           <AlertTitle>No Recipe Ideas This Time</AlertTitle>
           <AlertDescription>
-            We couldn&apos;t find any recipe ideas with that list of ingredients. Try changing your ingredients?
+            We couldn&apos;t find any recipe ideas with that list of ingredients. Try changing your ingredients or starting over with a new image.
           </AlertDescription>
-           <div className="text-center mt-6 space-x-4">
+           <div className="text-center mt-6 space-y-3 sm:space-y-0 sm:space-x-4">
              <Button variant="default" onClick={() => setCurrentStep('editingIngredients')}>
                 <Pencil className="mr-2 h-4 w-4"/> Change Ingredient List
             </Button>
-            <Button variant="outline" onClick={() => { setPhotoDataUri(null); /* useEffect will handle currentStep and editableIngredients */ }}>
+            <Button variant="outline" onClick={() => { setPhotoDataUri(null); }}>
               Try New Image
             </Button>
           </div>
@@ -361,17 +363,18 @@ export default function RecipeGeneratorPage() {
       {currentStep === 'initial' && !isAnalyzePending && !photoDataUri && (
         <Alert variant="default" className="mt-8 bg-primary/10 border-primary/30">
             <Lightbulb className="h-4 w-4 text-primary" />
-            <AlertTitle className="text-primary font-semibold">How to get recipe ideas:</AlertTitle>
-            <AlertDescription className="text-primary/80">
-                1. Upload an image of your ingredients (food items).
-                2. The AI will try to list the ingredients it sees.
-                3. You can add or remove ingredients from this list.
-                4. Click "Get Recipe Ideas" to see suggestions based on your final list!
+            <AlertTitle className="text-primary font-semibold">How to Get Recipe Ideas:</AlertTitle>
+            <AlertDescription className="text-primary/80 space-y-1">
+                <p>1. Upload an image of your food items.</p>
+                <p>2. Our AI will try to list the ingredients it sees.</p>
+                <p>3. You can then add or remove ingredients from this list.</p>
+                <p>4. Click "Get Recipe Ideas" for suggestions based on your final list!</p>
             </AlertDescription>
         </Alert>
       )}
     </div>
   );
 }
+    
 
     
