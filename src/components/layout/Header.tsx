@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { CookingPot, LogIn, LogOut, UserCircle, BookHeart, Sparkles } from 'lucide-react';
+import { CookingPot, LogIn, LogOut, User, BookHeart, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -13,10 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 export default function Header() {
-  const { isAuthenticated, logout, isLoading } = useAuth();
+  const { isAuthenticated, logout, isLoading, currentUser } = useAuth();
 
   return (
     <header className="bg-card shadow-md sticky top-0 z-50">
@@ -27,8 +28,8 @@ export default function Header() {
         </Link>
         <nav className="flex items-center gap-4">
           {isLoading ? (
-            <div className="h-8 w-20 bg-muted rounded animate-pulse"></div>
-          ) : isAuthenticated ? (
+             <Skeleton className="h-10 w-28" />
+          ) : isAuthenticated && currentUser ? (
             <>
               <Button variant="ghost" asChild>
                 <Link href="/app/generator" className="flex items-center gap-1">
@@ -42,19 +43,16 @@ export default function Header() {
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
-                      <AvatarFallback>YN</AvatarFallback>
-                    </Avatar>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
+                    <User size={24} className="text-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">Your Name</p>
+                      <p className="text-sm font-medium leading-none">Hi, {currentUser}!</p>
                       <p className="text-xs leading-none text-muted-foreground">
-                        your.email@example.com
+                        Welcome to Recipe Snap
                       </p>
                     </div>
                   </DropdownMenuLabel>
